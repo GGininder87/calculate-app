@@ -9,7 +9,6 @@ if 'inventory_logs' not in st.session_state:
 def add_transaction(item_number, amount):
     """將交易金額加入指定的商品的交易清單 (Log) 中。"""
     try:
-        # 這裡會接收 None 或數字
         if amount is None:
             st.warning("請輸入交易金額。")
             return
@@ -55,11 +54,12 @@ def display_totals_table():
                 # 負數：前面加空格和 - 號
                 log_str += f" {val:.0f}" # .0f 會自動包含負號
         
+        # ***關鍵修正處：將算式和結果合併，並移除單獨的「最終總額」欄位***
+        full_process_str = f"商品 {item_number}: {log_str} = ${total_amount:,.0f}"
+        
         # 儲存到顯示列表中
         display_data.append({
-            "商品編號": item_number,
-            "交易明細 (Log)": log_str,
-            "最終總額": total_amount
+            "交易明細 (Log)": full_process_str
         })
 
     if not display_data:
@@ -68,20 +68,27 @@ def display_totals_table():
 
     # 建立 Pandas DataFrame
     df = pd.DataFrame(display_data)
-    df = df.sort_values(by="商品編號")
     
-    # 格式化金額顯示
-    df["最終總額"] = df["最終總額"].map('${:,.0f}'.format)
+    # 由於不再有「商品編號」欄位，所以不需要排序
     
-    st.subheader("📊 商品交易明細與總額")
-    st.dataframe(df) 
+    st.subheader("📊 商品交易明細與最終結果")
     
-    # 顯示所有商品總和
+    # 這裡我們使用 st.markdown 來逐行顯示，而不是使用 st.dataframe
+    # 因為 st.dataframe 在單一欄位且內容為長字串時，顯示效果可能不佳。
+    
+    for row in display_data:
+        st.markdown(f"**{row['交易明細 (Log)']}**")
+    
+    # st.dataframe(df) # 註釋掉，改用 st.markdown 逐行顯示
+
+    # 顯示所有商品總和 (這部分保留)
     all_items_total = sum(sum(logs) for logs in st.session_state.inventory_logs.values())
-    st.markdown(f"**💰 所有商品總收入:** **${all_items_total:,.0f}**")
+    st.markdown("---")
+    st.markdown(f"**💰 所有商品總收入 (所有數字 0-99):** **${all_items_total:,.0f}**")
 
 
 # --- Streamlit 應用程式介面 (UI) ---
+# ... (UI 程式碼保持不變) ...
 
 st.title("商品金額整合計算器 (Web App)")
 st.caption("輸入商品編號 (0-99) 和交易金額，系統會自動儲存每筆明細。")
@@ -91,9 +98,7 @@ with st.form("transaction_form", clear_on_submit=True):
     # 商品編號維持整數輸入 (維持預設 value=0 較穩定)
     item_number = st.number_input("輸入商品編號 (0 - 99):", min_value=0, max_value=99, step=1, value=0)
     
-    # ***關鍵修改處：將 value 設為 None***
-    # 這樣輸入框在載入時就是空的，但可能會在舊版 Streamlit 產生警告。
-    # 如果出現錯誤，請將 value=None 移除，使用預設值 0。
+    # ***關鍵修改處：將 value 設為 None，讓輸入框預設為空***
     amount = st.number_input("輸入交易金額 (新增:正數, 修正/刪除:負數):", step=1, value=None)
     
     submitted = st.form_submit_button("確認提交 (Submit)")
@@ -117,4 +122,3 @@ st.sidebar.markdown("""
 * **修正/刪除:** 輸入**負數**金額，即可從總額中扣除 (該筆記錄也會出現在明細中)。
 * **數據儲存:** 數據會在瀏覽器 Session 中，關閉瀏覽器後會重置。
 """)
-

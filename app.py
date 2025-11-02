@@ -1,21 +1,3 @@
-這是一個很好的使用者體驗優化點！
-
-您希望在輸入金額時，輸入框內預設的 0 不要擋住您的輸入，這樣您就不必每次手動刪除它。
-
-在 Streamlit 中，我們可以在 st.number_input 中使用 value=None 或一個空值來實現，讓輸入框一開始是空的。不過，Streamlit 的 st.number_input 對 value 的處理比較嚴格，通常需要一個數字。
-
-✅ 解決方案：設置預設為空值（或在輸入時覆蓋）
-我們可以使用 placeholder 參數，但更常見且兼容性更好的方法是將預設值設定為 None，但這可能與舊版 Streamlit 衝突。
-
-針對您目前的程式碼，最穩定且最簡單的修正方式是讓程式碼在讀取數值時，能夠正確處理 None 的情況，並將輸入框的預設值設定為 None。
-
-請您再次完全替換您的 app.py 檔案內容，使用下面這段更新後的程式碼。
-
-💻 完整且已修正的 Streamlit 程式碼 (金額輸入框預設為空)
-我將在 add_transaction 函式中加入對輸入值是否為 None 的檢查，並將 st.number_input 的 value 設為 None，讓輸入框預設為空。
-
-Python
-
 import streamlit as st
 import pandas as pd
 
@@ -135,3 +117,4 @@ st.sidebar.markdown("""
 * **修正/刪除:** 輸入**負數**金額，即可從總額中扣除 (該筆記錄也會出現在明細中)。
 * **數據儲存:** 數據會在瀏覽器 Session 中，關閉瀏覽器後會重置。
 """)
+

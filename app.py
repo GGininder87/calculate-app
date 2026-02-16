@@ -60,12 +60,22 @@ else:
                 with col_a:
                     st.write("**🔝 上:**")
                     st.code(format_log_text(data['up']))
-                    st.write(f"小計: ${sum_up:,.0f}")
+                    st.write(f"小計: `${sum_up:,.0f}`")
                 with col_b:
                     st.write("**⬇️ 下:**")
                     st.code(format_log_text(data['down']))
-                    st.write(f"小計: ${sum_down:,.0f}")
+                    st.write(f"小計: `${sum_down:,.0f}`")
 
     st.divider()
     t_up = sum(sum(d['up']) for d in logs.values())
-    t_down = sum(sum(d['down'])
+    t_down = sum(sum(d['down']) for d in logs.values())
+    
+    f1, f2 = st.columns(2)
+    f1.metric("總金額 (上) 累計", f"${t_up:,.0f}")
+    f2.metric("總金額 (下) 累計", f"${t_down:,.0f}")
+
+if st.sidebar.button("重設所有資料"):
+    st.session_state.inventory_logs = {}
+    st.rerun()
+
+# --- 程式碼完整結束標記 ---

@@ -1,6 +1,6 @@
 import streamlit as st
 
-# 1. 初始化 Session State (確保數據在同一節點內不會因刷新而消失)
+# 1. 初始化 Session State
 if 'inventory_logs' not in st.session_state:
     st.session_state.inventory_logs = {}
 
@@ -34,15 +34,9 @@ def display_totals_table():
     """顯示交易明細與總額"""
     st.subheader("📊 交易明細與最終成果")
     
-    # 排序編號：確保 24, 024 會分開顯示但排在一起
+    # 排序編號
     sorted_keys = sorted(st.session_state.inventory_logs.keys())
     
     display_data = False
     for item_id in sorted_keys:
-        data = st.session_state.inventory_logs[item_id]
-        if data['up'] or data['down']:
-            display_data = True
-            total_up = sum(data['up'])
-            total_down = sum(data['down'])
-            
-            with st.expander(f"🔢 編號: {item_id}", expanded=True):
+        data = st.session_state.inventory_logs

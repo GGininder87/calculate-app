@@ -1,13 +1,37 @@
 import streamlit as st
+import streamlit.components.v1 as components
 
 # 1. 頁面配置
 st.set_page_config(page_title="數字金額計算器", layout="wide")
 
-# 2. 初始化資料
+# 2. 強制聚焦腳本 (直接鎖定 HTML 元素)
+# 透過監聽 Streamlit 的渲染事件來強行奪取焦點
+components.html(
+    """
+    <script>
+    function focusInput() {
+        const inputs = window.parent.document.querySelectorAll('input[type="text"]');
+        if (inputs.length > 0) {
+            inputs[0].focus();
+        }
+    }
+    // 網頁載入時執行
+    setTimeout(focusInput, 500);
+    // 監聽鍵盤 Enter 事件，延時後再次聚焦
+    window.parent.document.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            setTimeout(focusInput, 1000);
+        }
+    });
+    </script>
+    """,
+    height=0,
+)
+
+# 3. 初始化資料
 if 'inventory_logs' not in st.session_state:
     st.session_state.inventory_logs = {}
 
-# 3. 處理提交逻辑
 def add_transaction(item_id, up_val, down_val):
     if item_id not in st.session_state.inventory_logs:
         st.session_state.inventory_logs[item_id] = {'up': [], 'down': []}
@@ -30,34 +54,30 @@ def format_log_text(logs):
 # --- UI 介面 ---
 st.title("🔢 快速輸入計算器")
 
-# 【核心修復】使用 placeholder 重新渲染表單
-placeholder = st.empty()
-
-with placeholder.container():
-    with st.form("input_form", clear_on_submit=True):
-        st.markdown("⌨️ **操作：** 編號 → `Tab` → 上 → `Tab` → 下 → `Enter` (提交後自動回位)")
-        
-        # 在這裡加入在 Streamlit 中隱藏的關鍵屬性
-        item_id = st.text_input("1. 輸入編號 (區分 24 與 024):", key="id_input").strip()
-        
-        c_in1, c_in2 = st.columns(2)
-        with c_in1:
-            u_val = st.text_input("2. 金額 (上):", key="up_input")
-        with c_in2:
-            d_val = st.text_input("3. 金額 (下):", key="down_input")
-        
-        submit = st.form_submit_button("確認提交 (Enter)")
-        
-        if submit:
-            if not item_id:
-                st.warning("請輸入編號")
-            elif not u_val and not d_val:
-                st.warning("請輸入金額")
-            else:
-                if add_transaction(item_id, u_val, d_val):
-                    st.toast(f"✅ 已紀錄: {item_id}", icon='🚀')
-                    # 這一行會強迫整個頁面重新整理，並因為 clear_on_submit 讓游標回到第一個 input
-                    st.rerun()
+# 使用 form 並開啟清單重置
+with st.form("input_form", clear_on_submit=True):
+    st.markdown("⌨️ **流暢操作：** `編號` → `Tab` → `上` → `Tab` → `下` → `Enter` (游標將強行歸位)")
+    
+    # 這裡的 key 必須保持唯一
+    item_id = st.text_input("1. 輸入編號 (區分 24 與 024):", key="id_input").strip()
+    
+    col_in1, col_in2 = st.columns(2)
+    with col_in1:
+        u_val = st.text_input("2. 金額 (上):", key="up_input")
+    with col_in2:
+        d_val = st.text_input("3. 金額 (下):", key="down_input")
+    
+    submit = st.form_submit_button("確認提交 (Enter)")
+    
+    if submit:
+        if not item_id:
+            st.warning("請輸入編號")
+        elif not u_val and not d_val:
+            st.warning("請輸入金額")
+        else:
+            if add_transaction(item_id, u_val, d_val):
+                st.toast(f"✅ 已紀錄: {item_id}", icon='🚀')
+                # 不使用 st.rerun 以保持 JS 監聽有效
 
 st.divider()
 
@@ -79,15 +99,15 @@ with c2: st.warning(f"**三位數 統計** | 🔝 上: `${t3_up:,.0f}` | ⬇️ 
 
 st.divider()
 
-# --- 明細顯示 ---
+# --- 明細顯示 (4欄佈局) ---
 if not logs:
     st.info("目前沒有資料")
 else:
-    display_cols = st.columns(5)
+    display_cols = st.columns(4)
     for i, idx in enumerate(sorted_keys):
         data = logs[idx]
         s_up, s_down = sum(data['up']), sum(data['down'])
-        with display_cols[i % 5]:
+        with display_cols[i % 4]:
             st.markdown(f"**#{idx}**")
             if data['up']: st.caption(f"上:{format_log_text(data['up'])}={s_up:,.0f}")
             if data['down']: st.caption(f"下:{format_log_text(data['down'])}={s_down:,.0f}")

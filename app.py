@@ -4,8 +4,7 @@ import streamlit.components.v1 as components
 # 1. 頁面配置
 st.set_page_config(page_title="數字金額計算器", layout="wide")
 
-# 2. 強制聚焦腳本 (直接鎖定 HTML 元素)
-# 透過監聽 Streamlit 的渲染事件來強行奪取焦點
+# 2. 強制聚焦腳本 (讓游標在提交後回到第一格)
 components.html(
     """
     <script>
@@ -15,9 +14,7 @@ components.html(
             inputs[0].focus();
         }
     }
-    // 網頁載入時執行
     setTimeout(focusInput, 500);
-    // 監聽鍵盤 Enter 事件，延時後再次聚焦
     window.parent.document.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             setTimeout(focusInput, 1000);
@@ -31,17 +28,28 @@ components.html(
 # 3. 初始化資料
 if 'inventory_logs' not in st.session_state:
     st.session_state.inventory_logs = {}
+# 新增：紀錄最後一筆輸入的內容
+if 'last_entry' not in st.session_state:
+    st.session_state.last_entry = None
 
 def add_transaction(item_id, up_val, down_val):
     if item_id not in st.session_state.inventory_logs:
         st.session_state.inventory_logs[item_id] = {'up': [], 'down': []}
-    try:
-        if up_val: st.session_state.inventory_logs[item_id]['up'].append(float(up_val))
-        if down_val: st.session_state.inventory_logs[item_id]['down'].append(float(down_val))
-        return True
-    except ValueError:
-        st.error("金額請輸入純數字")
-        return False
+    
+    # 轉換與儲存
+    v_up = float(up_val) if up_val else 0
+    v_down = float(down_val) if down_val else 0
+    
+    if up_val: st.session_state.inventory_logs[item_id]['up'].append(v_up)
+    if down_val: st.session_state.inventory_logs[item_id]['down'].append(v_down)
+    
+    # 更新最後一筆紀錄資訊
+    st.session_state.last_entry = {
+        'id': item_id,
+        'up': v_up,
+        'down': v_down
+    }
+    return True
 
 def format_log_text(logs):
     if not logs: return "0"
@@ -54,11 +62,7 @@ def format_log_text(logs):
 # --- UI 介面 ---
 st.title("🔢 快速輸入計算器")
 
-# 使用 form 並開啟清單重置
 with st.form("input_form", clear_on_submit=True):
-    st.markdown("⌨️ **流暢操作：** `編號` → `Tab` → `上` → `Tab` → `下` → `Enter` (游標將強行歸位)")
-    
-    # 這裡的 key 必須保持唯一
     item_id = st.text_input("1. 輸入編號 (區分 24 與 024):", key="id_input").strip()
     
     col_in1, col_in2 = st.columns(2)
@@ -67,8 +71,16 @@ with st.form("input_form", clear_on_submit=True):
     with col_in2:
         d_val = st.text_input("3. 金額 (下):", key="down_input")
     
-    submit = st.form_submit_button("確認提交 (Enter)")
+    # 建立兩欄，左邊放按鈕，右邊放提示
+    btn_col, info_col = st.columns([1, 3])
+    with btn_col:
+        submit = st.form_submit_button("確認提交 (Enter)")
     
+    with info_col:
+        if st.session_state.last_entry:
+            le = st.session_state.last_entry
+            st.markdown(f"⬅️ **最後紀錄：** `編號 {le['id']}` | `上: {le['up']:.0f}` | `下: {le['down']:.0f}`")
+
     if submit:
         if not item_id:
             st.warning("請輸入編號")
@@ -76,8 +88,8 @@ with st.form("input_form", clear_on_submit=True):
             st.warning("請輸入金額")
         else:
             if add_transaction(item_id, u_val, d_val):
-                st.toast(f"✅ 已紀錄: {item_id}", icon='🚀')
-                # 不使用 st.rerun 以保持 JS 監聽有效
+                st.toast(f"✅ 已紀錄: {item_id}")
+                st.rerun() # 重新整理以即時更新按鈕旁的文字
 
 st.divider()
 
@@ -99,7 +111,7 @@ with c2: st.warning(f"**三位數 統計** | 🔝 上: `${t3_up:,.0f}` | ⬇️ 
 
 st.divider()
 
-# --- 明細顯示 (4欄佈局) ---
+# --- 明細顯示 ---
 if not logs:
     st.info("目前沒有資料")
 else:
@@ -115,4 +127,5 @@ else:
 
 if st.sidebar.button("重設所有資料"):
     st.session_state.inventory_logs = {}
+    st.session_state.last_entry = None
     st.rerun()

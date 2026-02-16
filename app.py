@@ -1,3 +1,11 @@
+這個需求非常合理！這能讓你的帳單或紀錄看起來更整齊。
+
+要達成「先排兩位數（0-99），再排三位數（000-999）」的邏輯，我們需要在顯示前將編號（ID）進行 「長度優先，數值次之」 的排序。
+
+以下是修改後的完整程式碼。我已經加入了排序邏輯，並且保留了你要求的「重複輸入則顯示加總過程（100 + 50 = 150）」功能。
+
+完整修復版程式碼
+Python
 import streamlit as st
 
 # 頁面配置
@@ -16,9 +24,11 @@ def add_transaction(item_id, up_val, down_val):
         st.session_state.inventory_logs[item_id]['down'].append(down_val)
 
 def format_log_text(logs):
+    """將 [100, 50] 轉為 '100 + 50'"""
     if not logs: return "0"
     res = []
     for i, v in enumerate(logs):
+        # 第一筆不加符號，之後的正數加 +
         prefix = "+" if (i > 0 and v >= 0) else ""
         res.append(f"{prefix}{v:.0f}")
     return " ".join(res)
@@ -27,7 +37,7 @@ def format_log_text(logs):
 st.title("🔢 數字金額整合計算器")
 
 with st.form("my_form", clear_on_submit=True):
-    item_id = st.text_input("1. 輸入編號 (區分 24 與 024):").strip()
+    item_id = st.text_input("1. 輸入編號 (如: 24 或 024):").strip()
     c_in1, c_in2 = st.columns(2)
     with c_in1:
         u_val = st.number_input("金額 (上):", value=None, step=1)
@@ -50,21 +60,28 @@ logs = st.session_state.inventory_logs
 if not logs:
     st.info("目前沒有資料")
 else:
-    for idx in sorted(logs.keys()):
+    # --- 排序邏輯 ---
+    # 排序規則：先比字串長度 (len)，再比字串內容 (x)
+    # 這樣 2 位的 (如 24) 就會排在 3 位的 (如 024) 前面
+    sorted_keys = sorted(logs.keys(), key=lambda x: (len(x), x))
+    
+    for idx in sorted_keys:
         data = logs[idx]
         if data['up'] or data['down']:
             sum_up = sum(data['up'])
             sum_down = sum(data['down'])
+            
             with st.expander(f"編號: {idx}", expanded=True):
                 col_a, col_b = st.columns(2)
                 with col_a:
                     st.write("**🔝 上:**")
-                    st.code(format_log_text(data['up']))
-                    st.write(f"小計: `${sum_up:,.0f}`")
+                    log_up = format_log_text(data['up'])
+                    # 顯示格式：100 + 50 = 150
+                    st.code(f"{log_up} = {sum_up:,.0f}", language="text")
                 with col_b:
                     st.write("**⬇️ 下:**")
-                    st.code(format_log_text(data['down']))
-                    st.write(f"小計: `${sum_down:,.0f}`")
+                    log_down = format_log_text(data['down'])
+                    st.code(f"{log_down} = {sum_down:,.0f}", language="text")
 
     st.divider()
     t_up = sum(sum(d['up']) for d in logs.values())
